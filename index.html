@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Roteiro Paris — 5–9 Nov 2025 (Mapa Interativo)</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-sA+e2Z6k+gkGxv6vJ6kXrJQm7o2b2j3vYk5x0z8aV+0=" crossorigin=""/>
+  <style>
+    body { margin:0; font-family: Arial, Helvetica, sans-serif; }
+    #map { position: fixed; top: 0; right: 0; bottom: 0; left: 40%; }
+    #sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 40%; overflow:auto; padding: 18px; box-sizing: border-box; border-right: 1px solid #ddd; background: #fafafa; }
+    h1 { font-size: 18px; margin: 0 0 8px 0; }
+    .place { margin: 8px 0; padding: 8px; border-radius: 6px; background: #fff; box-shadow: 0 1px 0 rgba(0,0,0,0.05); }
+    .time { color: #555; font-size: 13px; }
+    .status { font-size: 12px; color: #888; }
+    footer { font-size:12px; color:#666; margin-top:12px }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <h1>Roteiro Paris — 5 a 9 de novembro de 2025</h1>
+    <p><strong>Mapa interativo</strong> com todos os sítios do seu plano. O mapa irá procurar (geocode) as localizações automaticamente quando o ficheiro for aberto — nenhum servidor extra é necessário; usa a API pública do <em>Nominatim / OpenStreetMap</em>.</p>
+    <p>Se um marcador não aparecer, abra o ficheiro num browser (Chrome/Firefox) e aguarde alguns segundos; pode ter de permitir pedidos externos.</p>
+    <hr/>
+    <div id="places-list"></div>
+    <footer>Gerado automaticamente — contém os pontos do seu roteiro (nome + horário). Clique num item para centrar o mapa nesse ponto.</footer>
+  </div>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-o9N1j7kU6w7wVv+g9QJq0Zr9b1g9Z2s6b2e1mM8y+3g=" crossorigin=""></script>
+
+  <script>
+  const places = [
+    {label: "Hôtel Observatoire Luxembourg, 107 Boulevard Saint-Michel", day:"Quarta, 5 nov", time:"Check-in (após 13:20)" , desc:"Hotel (Rive Gauche)"},
+    {label: "Kodawari Yokochō Paris, 6th arrondissement", day:"Quarta, 5 nov", time:"15:00", desc:"Almoço (Kodawari Yokochō, 6e)"},
+    {label: "La Grande Epicerie de Paris Rive Gauche, 38 Rue de Sèvres", day:"Quarta, 5 nov", time:"16:00", desc:"La Grande Épicerie (Rive Gauche)"},
+    {label: "Officine Universelle Buly 1803 Rue Bonaparte, Paris", day:"Quarta, 5 nov", time:"16:30–17:15", desc:"Loja original (Rue Bonaparte)"},
+    {label: "Vedettes du Pont Neuf departure Pont Neuf Paris", day:"Quarta, 5 nov", time:"17:45–18:45", desc:"Cruzeiro no Sena — Vedettes du Pont Neuf"},
+    {label: "Bistrot des Livres, Paris", day:"Quarta, 5 nov", time:"20:00", desc:"Jantar de aniversário"},
+    {label: "Pont Neuf, Paris", day:"Quarta, 5 nov", time:"Noite", desc:"Passeio — Pont Neuf e Île de la Cité iluminada"},
+
+    {label: "Château de Versailles (Palace of Versailles)", day:"Quinta, 6 nov", time:"10:00", desc:"Entrada Palácio de Versailles (áudio-guia)"},
+    {label: "La Baguette du Relais, Paris", day:"Quinta, 6 nov", time:"13:10–13:40", desc:"Almoço"},
+    {label: "Place du Trocadéro et du 11 Novembre, Trocadéro", day:"Quinta, 6 nov", time:"15:30", desc:"Trocadéro (vista clássica)"},
+    {label: "Carette Trocadéro", day:"Quinta, 6 nov", time:"16:10–16:45", desc:"Lanche"},
+    {label: "Rue de l'Université, Paris (foto com Torre Eiffel)", day:"Quinta, 6 nov", time:"17:00", desc:"Fotos com a Torre; sem subida"},
+    {label: "Chez Marcel Paris restaurant", day:"Quinta, 6 nov", time:"20:30", desc:"Jantar"},
+
+    {label: "Cathédrale Notre-Dame de Paris", day:"Sexta, 7 nov", time:"09:15", desc:"Notre-Dame (interior/exterior)"},
+    {label: "Sainte-Chapelle, Paris", day:"Sexta, 7 nov", time:"10:15", desc:"Sainte-Chapelle (opcional curta)"},
+    {label: "UNIQLO Le Marais Paris", day:"Sexta, 7 nov", time:"11:30–12:20", desc:"Marais — UNIQLO Le Marais"},
+    {label: "Supreme Paris store, Le Marais", day:"Sexta, 7 nov", time:"11:30–12:20", desc:"Marais — Supreme Paris"},
+    {label: "Bidoche Paris (restaurant)", day:"Sexta, 7 nov", time:"13:30", desc:"Almoço (reserva)"},
+    {label: "Canal Saint-Martin, Quai de Valmy, Paris", day:"Sexta, 7 nov", time:"14:35–15:15", desc:"Canal Saint-Martin — Quais de Valmy & Jemmapes; Écluse du Temple; Passerelle"},
+    {label: "Jardin des Tuileries", day:"Sexta, 7 nov", time:"15:45–16:30", desc:"Jardin des Tuileries"},
+    {label: "Musée du Louvre (Louvre) entrance", day:"Sexta, 7 nov", time:"17:30–19:30", desc:"Louvre (entrada 17:30)"},
+    {label: "Au Pied de Cochon, Les Halles", day:"Sexta, 7 nov", time:"20:30", desc:"Jantar"},
+
+    {label: "Basilique du Sacré-Cœur de Montmartre", day:"Sábado, 8 nov", time:"09:00–10:15", desc:"Sacré-Cœur (exterior) + miradouro + ruelas"},
+    {label: "Le Singe qui Lit souvenir shop, Montmartre", day:"Sábado, 8 nov", time:"10:20", desc:"Souvenirs"},
+    {label: "Rue des Trois Frères photobooth, Montmartre", day:"Sábado, 8 nov", time:"10:45", desc:"Photobooth vintage"},
+    {label: "Bouillon Pigalle restaurant", day:"Sábado, 8 nov", time:"12:00", desc:"Almoço (à abertura)"},
+    {label: "Moulin Rouge, Boulevard de Clichy (façade)", day:"Sábado, 8 nov", time:"12:45–13:00", desc:"Foto da fachada"},
+    {label: "Opéra Garnier (Palais Garnier)", day:"Sábado, 8 nov", time:"14:00–15:00", desc:"Visita interior"},
+    {label: "Galeries Lafayette Haussmann rooftop", day:"Sábado, 8 nov", time:"15:10–16:10", desc:"Terraço panorâmico"},
+    {label: "Champs-Élysées", day:"Sábado, 8 nov", time:"16:30–18:30", desc:"Passeio — Champs & Arc de Triomphe"},
+    {label: "Arc de Triomphe", day:"Sábado, 8 nov", time:"16:30–18:30", desc:"Arco - fotos"},
+    {label: "Pink Mamma restaurant", day:"Sábado, 8 nov", time:"20:00", desc:"Jantar"},
+
+    {label: "Le Bon Marché Rive Gauche", day:"Domingo, 9 nov", time:"09:15–12:30", desc:"Lojas / cafés — Saint-Germain / Rue de Rennes / Le Bon Marché"},
+    {label: "HANDO Sèvres restaurant", day:"Domingo, 9 nov", time:"12:45", desc:"Almoço (HANDO Sèvres)"},
+    {label: "Aéroport Paris-Orly (Orly Airport)", day:"Domingo, 9 nov", time:"Saída para Orly — voo 16:40", desc:"Partida — Orly (RER/Metro M14)"},
+  ];
+
+  const map = L.map('map').setView([48.8566, 2.3522], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  const markers = [];
+  const bounds = L.latLngBounds();
+
+  const listDiv = document.getElementById('places-list');
+  places.forEach((p, idx) => {
+    const el = document.createElement('div');
+    el.className = 'place';
+    el.innerHTML = `<strong>${p.label}</strong><div class="time">${p.day} · ${p.time}</div><div class="status" id="status-${idx}">A carregar localização...</div>`;
+    el.style.cursor = 'pointer';
+    el.onclick = () => {
+      if (p._marker) map.setView(p._marker.getLatLng(), 16);
+    };
+    listDiv.appendChild(el);
+  });
+
+  async function geocodePlaces() {
+    for (let i=0;i<places.length;i++) {
+      const p = places[i];
+      const statusEl = document.getElementById('status-' + i);
+      try {
+        const q = encodeURIComponent(p.label + ", Paris, France");
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1&addressdetails=0`;
+        const resp = await fetch(url, {headers: {'Accept-Language':'pt'}});
+        const results = await resp.json();
+        if (results && results.length>0) {
+          const r = results[0];
+          const lat = parseFloat(r.lat), lon = parseFloat(r.lon);
+          const marker = L.marker([lat, lon]).addTo(map);
+          marker.bindPopup(`<strong>${p.label}</strong><br>${p.desc}<br><em>${p.day} · ${p.time}</em>`);
+          p._marker = marker;
+          markers.push(marker);
+          bounds.extend([lat, lon]);
+          statusEl.textContent = `Localização encontrada (lat: ${lat.toFixed(5)}, lon: ${lon.toFixed(5)})`;
+        } else {
+          statusEl.textContent = "Localização não encontrada automaticamente — tente pesquisar manualmente no mapa.";
+        }
+      } catch (err) {
+        statusEl.textContent = "Erro ao geocodificar: " + err;
+      }
+    }
+
+    if (markers.length>0) {
+      map.fitBounds(bounds.pad(0.2));
+    }
+  }
+
+  geocodePlaces();
+  </script>
+</body>
+</html>
